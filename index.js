@@ -9,7 +9,8 @@ require('dotenv').config();
 
 const app = new Koa();
 const router = new Router();
-const { token, aeskey } = process.env;
+console.log(process.env);
+const { TOKEN, ENCODING_AES_KEY } = process.env;
 
 const logger = createLogger({
     format: format.combine(
@@ -30,13 +31,13 @@ router.get('/scrm/callback', (ctx, next) => {
     logger.info('Get params', ctx.query);
     // 从 query 中获取相关参数
     const { msg_signature, timestamp, nonce, echostr } = ctx.query;
-    const signature = crypto.getSignature(token, timestamp, nonce, echostr);
+    const signature = crypto.getSignature(TOKEN, timestamp, nonce, echostr);
 
     if (signature === msg_signature) {
         logger.info('签名验证成功')
         // 在应用详情页找到对应的EncodingAESKey
         // 如果签名校验正确，解密 message
-        const { message } = crypto.decrypt(aeskey, echostr);
+        const { message } = crypto.decrypt(ENCODING_AES_KEY, echostr);
         logger.log('message', message);
         // 返回 message 信息
         ctx.body = message;
@@ -44,7 +45,6 @@ router.get('/scrm/callback', (ctx, next) => {
 });
 
 router.post('/scrm/callback', (ctx, next) => {
-    const { msg_signature, timestamp, nonce } = ctx.query;
     const post_body = ctx.request.body;
     console.log(post_body);
     xml2js.parseString(post_body, (err, result) => {
@@ -53,7 +53,7 @@ router.post('/scrm/callback', (ctx, next) => {
             ctx.body = '';
             return;
         }
-        const { message } = crypto.decrypt(aeskey, result.Encrypt);
+        const { message } = crypto.decrypt(ENCODING_AES_KEY, result.Encrypt);
         logger.info("Clear message: ", message);
         ctx.body = '';
     });
