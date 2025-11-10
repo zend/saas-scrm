@@ -47,25 +47,16 @@ router.post('/scrm/callback', (ctx, next) => {
     const { msg_signature, timestamp, nonce } = ctx.query;
     const post_body = ctx.request.body;
     console.log(post_body);
-    const signature = crypto.getSignature(token, timestamp, nonce, post_body);
-    logger.info('signature: %s, msg_signature: %s', signature, msg_signature);
-    logger.info('post_body: %s', post_body);
-    if (msg_signature == signature) {
-        logger.info("Good signature.", signature);
-        xml2js.parseString(post_body, (err, result) => {
-            if (err) {
-                logger.error('ERROR parsing xml: ', post_body);
-                ctx.body = '';
-                return;
-            }
-            const { message } = crypto.decrypt(aeskey, result.Encrypt);
-            logger.info("Clear message: ", message);
+    xml2js.parseString(post_body, (err, result) => {
+        if (err) {
+            logger.error('ERROR parsing xml: ', post_body);
             ctx.body = '';
-        });
-    } else {
-        logger.error('signature not match: %s !== %s', signature, msg_signature);
+            return;
+        }
+        const { message } = crypto.decrypt(aeskey, result.Encrypt);
+        logger.info("Clear message: ", message);
         ctx.body = '';
-    }
+    });
 });
 
 app
