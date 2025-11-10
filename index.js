@@ -50,12 +50,18 @@ router.post('/scrm/callback', (ctx, next) => {
     console.log(post_body);
     xml2js.parseString(post_body, (err, result) => {
         if (err) {
-            logger.error('ERROR parsing xml: ', post_body);
-            ctx.body = '';
+            logger.error('ERROR parsing xml: ', err);
             return;
         }
-        const { message } = crypto.decrypt(ENCODING_AES_KEY, result.Encrypt);
-        logger.info("Clear message: ", message);
+        const { message } = crypto.decrypt(ENCODING_AES_KEY, result.xml.Encrypt[0]);
+        logger.info("Clear message: %s", message);
+        xml2js.parseString(message, (e, res) => {
+            if (e) {
+                logger.error('ERROR parsing xml: %s', e);
+                return;
+            }
+            ctx.body = res.xml.SuiteTicket[0];
+        });
         ctx.body = '';
     });
 });
