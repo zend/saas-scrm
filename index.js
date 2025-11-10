@@ -9,7 +9,6 @@ require('dotenv').config();
 
 const app = new Koa();
 const router = new Router();
-console.log(process.env);
 const { TOKEN, ENCODING_AES_KEY } = process.env;
 
 const logger = createLogger({
@@ -26,6 +25,8 @@ const logger = createLogger({
 
 app.use(koaBody());
 app.use(koaLogger());
+
+logger.debug('Using token %s, aeskey %s', TOKEN, ENCODING_AES_KEY);
 
 router.get('/scrm/callback', (ctx, next) => {
     logger.info('Get params', ctx.query);
