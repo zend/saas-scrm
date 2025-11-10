@@ -5,18 +5,18 @@ const koaLogger = require('koa-logger');
 const winston = require('winston');
 const xml2js = require('xml2js');
 const crypto = require('@wecom/crypto');
+require('dotenv').config();
 
 const app = new Koa();
 const router = new Router();
-const token = 'sTx1DXFszX1CVi9S01bv6MvOh';
-const aeskey = 'gFpakt4dFMIEQFzyxFimLLs0w5c3g441BW7Bp9gGS2A';
+const { token, aeskey } = process.env;
 
 const myFormat = winston.format.printf(({ level, message, label, timestamp }) => {
     return `${timestamp} [${label}] ${level}: ${message}`;
 });
 const logger = winston.createLogger({
     format: winston.format.combine(
-        winston.format.label({ label: 'right meow!' }),
+        winston.format.label({ label: 'app' }),
         winston.format.timestamp(),
         myFormat
     ),
@@ -61,8 +61,7 @@ router.post('/scrm/callback', (ctx, next) => {
             const { message } = crypto.decrypt(aeskey, result.Encrypt);
             logger.info("Clear message: ", message);
             ctx.body = 'success';
-        })
-        
+        });
     } else {
         ctx.body = 'error';
     }
