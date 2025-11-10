@@ -19,7 +19,7 @@ const logger = createLogger({
     ),
     transports: [
         new transports.Console(),
-        new winston.transports.File({ filename: 'app.log' }),
+        new transports.File({ filename: 'app.log' }),
     ]
 });
 
@@ -44,8 +44,9 @@ router.get('/scrm/callback', (ctx, next) => {
 });
 
 router.post('/scrm/callback', (ctx, next) => {
-    const { msg_signature, timestamp, nonce, echostr } = ctx.query;
+    const { msg_signature, timestamp, nonce } = ctx.query;
     const post_body = ctx.request.body;
+    console.log(post_body);
     const signature = crypto.getSignature(token, timestamp, nonce, post_body);
     logger.info('signature: %s, msg_signature: %s', signature, msg_signature);
     logger.info('post_body: %s', post_body);
