@@ -36,11 +36,11 @@ router.get('/scrm/callback', (ctx, next) => {
     const signature = crypto.getSignature(token, timestamp, nonce, echostr);
 
     if (signature === msg_signature) {
-        console.info('签名验证成功')
+        logger.info('签名验证成功')
         // 在应用详情页找到对应的EncodingAESKey
         // 如果签名校验正确，解密 message
         const { message } = crypto.decrypt(aeskey, echostr);
-        console.log('message', message);
+        logger.log('message', message);
         // 返回 message 信息
         ctx.body = message;
     }
@@ -50,6 +50,8 @@ router.post('/scrm/callback', (ctx, next) => {
     const { msg_signature, timestamp, nonce, echostr } = ctx.query;
     const post_body = ctx.request.body;
     const signature = crypto.getSignature(token, timestamp, nonce, post_body);
+    logger.info('signature: %s, msg_signature: %s', signature, msg_signature);
+    logger.info('post_body: %s', post_body);
     if (msg_signature == signature) {
         logger.info("Good signature.", signature);
         xml2js.parseString(post_body, (err, result) => {
@@ -63,6 +65,7 @@ router.post('/scrm/callback', (ctx, next) => {
             ctx.body = '';
         });
     } else {
+        logger.error('signature not match: %s !== %s', signature, msg_signature);
         ctx.body = '';
     }
 });
