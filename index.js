@@ -55,15 +55,15 @@ router.post('/scrm/callback', (ctx, next) => {
         xml2js.parseString(post_body, (err, result) => {
             if (err) {
                 logger.error('ERROR parsing xml: ', post_body);
-                ctx.body = 'error';
+                ctx.body = '';
                 return;
             }
             const { message } = crypto.decrypt(aeskey, result.Encrypt);
             logger.info("Clear message: ", message);
-            ctx.body = 'success';
+            ctx.body = '';
         });
     } else {
-        ctx.body = 'error';
+        ctx.body = '';
     }
 });
 
