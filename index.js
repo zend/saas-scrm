@@ -2,7 +2,7 @@ const Koa = require('koa');
 const Router = require('@koa/router');
 const { koaBody } = require('koa-body');
 const koaLogger = require('koa-logger');
-const winston = require('winston');
+const { createLogger, format, transports } = require('winston');
 const xml2js = require('xml2js');
 const crypto = require('@wecom/crypto');
 require('dotenv').config();
@@ -11,18 +11,15 @@ const app = new Koa();
 const router = new Router();
 const { token, aeskey } = process.env;
 
-const myFormat = winston.format.printf(({ level, message, label, timestamp }) => {
-    return `${timestamp} [${label}] ${level}: ${message}`;
-});
-const logger = winston.createLogger({
-    format: winston.format.combine(
-        winston.format.label({ label: 'app' }),
-        winston.format.timestamp(),
-        myFormat
+const logger = createLogger({
+    format: format.combine(
+        format.timestamp(),
+        format.splat(),
+        format.simple()
     ),
     transports: [
-        new winston.transports.Console(),
-        new winston.transports.File({ filename: 'app.log' })
+        new transports.Console(),
+        new winston.transports.File({ filename: 'app.log' }),
     ]
 });
 
