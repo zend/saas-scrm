@@ -5,7 +5,7 @@ const koaLogger = require('koa-logger');
 const { createLogger, format, transports } = require('winston');
 
 const crypto = require('@wecom/crypto');
-const { xml } = require('./utils');
+const { xml, record } = require('./utils');
 require('dotenv').config();
 
 const app = new Koa();
@@ -20,7 +20,7 @@ const logger = createLogger({
     ),
     transports: [
         new transports.Console(),
-        new transports.File({ filename: 'app.log' }),
+        // new transports.File({ filename: 'app.log' }),
     ]
 });
 
@@ -41,12 +41,36 @@ router.get('/scrm/callback', (ctx, next) => {
 router.post('/scrm/callback', async (ctx, next) => {
     const post_body = ctx.request.body;
     const { Encrypt, ToUserName, AgentID } = await xml(post_body);
-    logger.info('Received: %s', { Encrypt, ToUserName, AgentID });
-    const { xml_message } = crypto.decrypt(ENCODING_AES_KEY, Encrypt);
-    logger.info('xml message: %s', xml_message);
-    const decrypted = await xml(xml_message);
-    logger.info('decrypted', decrypted);
-    ctx.body = 'success';
+
+    const { msg_signature, timestamp, nonce } = ctx.query;
+    const signature = crypto.getSignature(TOKEN, timestamp, nonce, Encrypt);
+    if (signature == msg_signature) {
+        logger.info('signature matched!');
+        logger.info('Received: %s', { Encrypt, ToUserName, AgentID });
+        const { message } = crypto.decrypt(ENCODING_AES_KEY, Encrypt);
+        const decrypted = await xml(message);
+        record(decrypted);
+        logger.info('decrypted', decrypted);
+
+        switch (decrypted.InfoType) {
+            case 'create_auth':
+                logger.info(`create_auth, auth code = ${decrypted.AuthCode}`);
+                break;
+            case 'suite_ticket':
+                logger.info(`suite_ticket, ticket = ${decrypted.SuiteTicket}`);
+                break;
+            case 'reset_permanent_code':
+                logger.info(`reset_permanent_code, auth code = ${decrypted.AuthCode}`);
+                break;
+            case 'approve_special_auth':
+            case 'cancel_special_auth':
+                logger.info(`approve_special_auth, AuthType=${decrypted.AuthType}, AuthCorpId=${decrypted.AuthCorpId}`);
+        }
+        ctx.body = 'success';
+    } else {
+        logger.error('signature: %s !== msg_signature: %s', signature, msg_signature);
+    }
+
 });
 
 app

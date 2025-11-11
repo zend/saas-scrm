@@ -1,4 +1,4 @@
 node_modules
-app.log
+*.log
 package-lock.json
 .env
