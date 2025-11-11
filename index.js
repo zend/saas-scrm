@@ -5,12 +5,12 @@ const koaLogger = require('koa-logger');
 const { createLogger, format, transports } = require('winston');
 
 const crypto = require('@wecom/crypto');
-const { xml, record } = require('./utils');
+const { xml, record, httpPost } = require('./utils');
 require('dotenv').config();
 
 const app = new Koa();
 const router = new Router();
-const { TOKEN, ENCODING_AES_KEY } = process.env;
+const { TOKEN, ENCODING_AES_KEY, SUITE_ID, SUITE_SECRET } = process.env;
 
 const logger = createLogger({
     format: format.combine(
@@ -72,6 +72,17 @@ router.post('/scrm/callback', async (ctx, next) => {
     }
 
 });
+
+router.get('/scrm/api/get_suite_token', async (ctx, next) => {
+    const data = {
+        suite_id: SUITE_ID,
+        suite_secret: SUITE_SECRET,
+        suite_ticket: ctx.query.ticket
+    };
+    const output = await httpPost('service/get_suite_token', data);
+    logger.info('output', output);
+    ctx.body = output;
+})
 
 app
     .use(router.routes())
