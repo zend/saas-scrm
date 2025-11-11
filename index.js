@@ -3,8 +3,9 @@ const Router = require('@koa/router');
 const { koaBody } = require('koa-body');
 const koaLogger = require('koa-logger');
 const { createLogger, format, transports } = require('winston');
-const xml2js = require('xml2js');
+
 const crypto = require('@wecom/crypto');
+const { xml } = require('./utils');
 require('dotenv').config();
 
 const app = new Koa();
@@ -29,41 +30,23 @@ app.use(koaLogger());
 logger.debug('Using token %s, aeskey %s', TOKEN, ENCODING_AES_KEY);
 
 router.get('/scrm/callback', (ctx, next) => {
-    logger.info('Get params', ctx.query);
-    // 从 query 中获取相关参数
-    const { msg_signature, timestamp, nonce, echostr } = ctx.query;
-    const signature = crypto.getSignature(TOKEN, timestamp, nonce, echostr);
-
-    if (signature === msg_signature) {
-        logger.info('签名验证成功')
-        // 在应用详情页找到对应的EncodingAESKey
-        // 如果签名校验正确，解密 message
-        const { message } = crypto.decrypt(ENCODING_AES_KEY, echostr);
-        logger.log('message', message);
-        // 返回 message 信息
-        ctx.body = message;
-    }
+    // 保存时用GET请求校验
+    const { echostr } = ctx.query;
+    // 可以直接用解密代替验签+解密
+    const { message } = crypto.decrypt(ENCODING_AES_KEY, echostr);
+    // 返回 message 信息
+    ctx.body = message;
 });
 
-router.post('/scrm/callback', (ctx, next) => {
+router.post('/scrm/callback', async (ctx, next) => {
     const post_body = ctx.request.body;
-    console.log(post_body);
-    xml2js.parseString(post_body, (err, result) => {
-        if (err) {
-            logger.error('ERROR parsing xml: ', err);
-            return;
-        }
-        const { message } = crypto.decrypt(ENCODING_AES_KEY, result.xml.Encrypt[0]);
-        logger.info("Clear message: %s", message);
-        xml2js.parseString(message, (e, res) => {
-            if (e) {
-                logger.error('ERROR parsing xml: %s', e);
-                return;
-            }
-            ctx.body = res.xml.SuiteTicket[0];
-        });
-        ctx.body = '';
-    });
+    const { Encrypt, ToUserName, AgentID } = await xml(post_body);
+    logger.info('Received: %s', { Encrypt, ToUserName, AgentID });
+    const { xml_message } = crypto.decrypt(ENCODING_AES_KEY, Encrypt);
+    logger.info('xml message: %s', xml_message);
+    const decrypted = await xml(xml_message);
+    logger.info('decrypted', decrypted);
+    ctx.body = 'success';
 });
 
 app
