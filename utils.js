@@ -1,6 +1,6 @@
-const xml2js = require('xml2js');
-const https = require('https');
-const { createLogger, format, transports } = require('winston');
+import { parseStringPromise } from 'xml2js';
+import { request } from 'https';
+import { createLogger, format, transports } from 'winston';
 
 const logger = createLogger({
     format: format.combine(
@@ -13,28 +13,61 @@ const logger = createLogger({
 });
 
 async function xml(xmlstr) {
-    const result = await xml2js.parseStringPromise(xmlstr, { explicitArray: false });
+    const result = await parseStringPromise(xmlstr, { explicitArray: false });
     return result.xml;
 }
 
-async function httpPost(api, data) {
-    const url = `https://qyapi.weixin.qq.com/cgi-bin/${api}`;
+async function httpGet(api) {
+    // const url = `https://qyapi.weixin.qq.com/cgi-bin/${api}`;
+    const url = `https://tx.ttz.ac.cn:24603/cgi-bin/${api}`;
     return new Promise((resolve, reject) => {
-        const postData = JSON.stringify(data);
-        const req = https.request(url, {
-            method: 'POST',
-            headers: {
-                'content-type': 'text/json',
-                'content-length': Buffer.byteLength(postData),
+        const req = request(url, (res) => {
+            const { statusCode } = res;
+            if (statusCode !== 200) {
+                logger.error(`http error code ${statusCode}, url ${url}`);
+                return;
             }
-        }, (res) => {
             res.setEncoding('utf-8');
             let output = '';
             res.on('data', (chunk) => {
                 output += chunk;
             });
             res.on('end', () => {
-                resolve(output);
+                resolve(JSON.parse(output));
+            });
+
+        });
+        req.on('error', (err) => {
+            reject(err);
+        });
+        req.end();
+    });
+}
+
+async function httpPost(api, data) {
+    // const url = `https://qyapi.weixin.qq.com/cgi-bin/${api}`;
+    const url = `https://tx.ttz.ac.cn:24603/cgi-bin/${api}`;
+    return new Promise((resolve, reject) => {
+        const postData = JSON.stringify(data);
+        const req = request(url, {
+            method: 'POST',
+            headers: {
+                'content-type': 'text/json',
+                'content-length': Buffer.byteLength(postData),
+            }
+        }, (res) => {
+            const { statusCode } = res;
+            if (statusCode !== 200) {
+                logger.error(`http error code ${statusCode}, url ${url}, postData ${postData}`);
+                return;
+            }
+            res.setEncoding('utf-8');
+            let output = '';
+            res.on('data', (chunk) => {
+                output += chunk;
+            });
+            res.on('end', () => {
+                resolve(JSON.parse(output));
             });
 
         });
@@ -50,8 +83,9 @@ function record(message) {
     logger.info(message);
 }
 
-module.exports = {
+export {
     xml,
     record,
-    httpPost
+    httpPost,
+    httpGet
 }
