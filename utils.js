@@ -8,6 +8,7 @@ const logger = createLogger({
         format.json()
     ),
     transports: [
+        new transports.Console(),
         new transports.File({ filename: 'traffic.log' }),
     ]
 });
@@ -33,7 +34,14 @@ async function httpGet(api) {
                 output += chunk;
             });
             res.on('end', () => {
-                resolve(JSON.parse(output));
+                logger.info(`httpGet(${url})=${output}`);
+                const data = JSON.parse(output);
+                if (data.errcode || data.errmsg) {
+                    logger.error(`HTTP Error!!! errcode=${data.errcode}, errmsg=${data.errmsg}`);
+                    reject(data);
+                } else {
+                    resolve(data);
+                }
             });
 
         });
@@ -67,7 +75,14 @@ async function httpPost(api, data) {
                 output += chunk;
             });
             res.on('end', () => {
-                resolve(JSON.parse(output));
+                logger.info(`httpPost(${url}, ${postData})=${output}`);
+                const data = JSON.parse(output);
+                if (data.errcode || data.errmsg) {
+                    logger.error(`HTTP Error!!! errcode=${data.errcode}, errmsg=${data.errmsg}`);
+                    reject(data);
+                } else {
+                    resolve(data);
+                }
             });
 
         });

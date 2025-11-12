@@ -1,4 +1,3 @@
-import { parseStringPromise } from 'xml2js';
 import { decrypt, getSignature } from '@wecom/crypto';
 import { createLogger, format, transports } from 'winston';
 
@@ -8,13 +7,13 @@ const logger = createLogger({
         format.json()
     ),
     transports: [
-        // new transports.Console(),
+        new transports.Console(),
         new transports.File({ filename: 'wecom.log' }),
     ]
 });
 
 import cache from "./cache.js";
-import { httpPost, httpGet } from './utils.js';
+import { httpPost, httpGet, xml } from './utils.js';
 
 const TTL_SUITE_TICKET = 1200 // 实际有效期30分钟，每10分钟推送一次，缓存20分钟
 const TTL_SUITE_ACCESS_TOKEN = 6000 // 实际有效期为7200，提前20分钟刷新
@@ -22,11 +21,18 @@ const TTL_AUTH_CODE = 600 // 10分钟有效
 const TTL_PERMANENT_CODE = 9999999999 // 实际是永久有效
 const TTL_ACCESS_TOKEN = 6000 // 实际有效期为7200，提前20分钟刷新
 
+import 'dotenv/config';
 const { TOKEN, ENCODING_AES_KEY, SUITE_ID, SUITE_SECRET } = process.env;
+console.log({ TOKEN, ENCODING_AES_KEY, SUITE_ID, SUITE_SECRET })
 
 function check_signature(timestamp, nonce, encrypted_str, msg_signature) {
     const sig = getSignature(TOKEN, timestamp, nonce, encrypted_str);
-    return sig === msg_signature;
+    if (sig === msg_signature) {
+        return true;
+    } else {
+        logger.error(`check_signature failed: ${sig} !== ${msg_signature}`);
+        return false;
+    }
 }
 
 function decrypt_text(encrypted_str) {
@@ -34,12 +40,12 @@ function decrypt_text(encrypted_str) {
 }
 
 async function decrypt_post_body(post_body, corpid, timestamp, nonce, msg_signature) {
-    const { Encrypt } = await parseStringPromise(post_body, { explicitArray: false });
+    const { Encrypt } = await xml(post_body);
     if (!check_signature(timestamp, nonce, Encrypt, msg_signature)) {
         return false;
     }
-    const { xml } = decrypt(ENCODING_AES_KEY, Encrypt);
-    const message = await parseStringPromise(xml, { explicitArray: false });
+    const { message: xml_msg } = decrypt(ENCODING_AES_KEY, Encrypt);
+    const message = await xml(xml_msg);
     switch (message.InfoType) {
         case 'suite_ticket':
             logger.info(`suite_ticket, suiteid=${message.SuiteId}, ticket=${message.SuiteTicket}`);
@@ -93,7 +99,8 @@ async function set_auth_code(corpid, suiteid, auth_code) {
     if (!permanent_code) {
         const suite_access_token = await get_suite_access_token(suiteid);
         // 尝试生成新的 permanent_code
-        logger.info(`gen: gen_permanent_code(${{ corpid, suiteid, auth_code, suite_access_token }})`,);
+        const json = JSON.stringify({ corpid, suiteid, auth_code, suite_access_token });
+        logger.info(`gen: gen_permanent_code(${json})`,);
         await gen_permanent_code(corpid, suiteid, auth_code, suite_access_token);
     }
 }

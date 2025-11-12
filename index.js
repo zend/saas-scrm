@@ -1,14 +1,11 @@
 import Koa from 'koa';
 import Router from '@koa/router';
 import { koaBody } from 'koa-body';
-import koaLogger from 'koa-logger';
 import { createLogger, format, transports } from 'winston';
 
 import { httpPost, httpGet } from './utils.js';
 import cache from "./cache.js";
 import wecom from './wecom.js';
-
-import 'dotenv/config';
 
 const app = new Koa();
 const router = new Router();
@@ -16,28 +13,30 @@ const router = new Router();
 const logger = createLogger({
     format: format.combine(
         format.timestamp(),
-        format.json()
+        format.simple()
     ),
     transports: [
         new transports.Console(),
-        // new transports.File({ filename: 'app.log' }),
+        new transports.File({ filename: 'app.log' }),
     ]
 });
 
 app.use(koaBody());
-app.use(koaLogger());
 
 router.get('/scrm/callback', (ctx) => {
     // 保存时用GET请求校验
+    logger.info(`router.get: ${ctx.url}`);
     const { timestamp, nonce, echostr, msg_signature } = ctx.query || {};
     if (wecom.check_signature(timestamp, nonce, echostr, msg_signature)) {
-        ctx.body = wecom.decrypt_text(echostr);
+        const { message } = wecom.decrypt_text(echostr);
+        ctx.body = message;
     } else {
         ctx.body = 'sig_error';
     }
 });
 
 router.post('/scrm/callback', async (ctx) => {
+    logger.info(`router.post: ${ctx.url}, data=${ctx.request.body}`);
     const post_body = ctx.request.body || '';
     const { corpid, timestamp, nonce, msg_signature } = ctx.query || {};
     const message = await wecom.decrypt_post_body(post_body, corpid, timestamp, nonce, msg_signature);
