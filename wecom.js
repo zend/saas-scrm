@@ -1,5 +1,11 @@
+import EventEmitter from 'events';
 import { decrypt, getSignature } from '@wecom/crypto';
 import { createLogger, format, transports } from 'winston';
+
+import cache from "./cache.js";
+import { httpPost, httpGet, xml } from './utils.js';
+
+import 'dotenv/config';
 
 const logger = createLogger({
     format: format.combine(
@@ -12,18 +18,19 @@ const logger = createLogger({
     ]
 });
 
-import cache from "./cache.js";
-import { httpPost, httpGet, xml } from './utils.js';
-
 const TTL_SUITE_TICKET = 1200 // 实际有效期30分钟，每10分钟推送一次，缓存20分钟
 const TTL_SUITE_ACCESS_TOKEN = 6000 // 实际有效期为7200，提前20分钟刷新
 const TTL_AUTH_CODE = 600 // 10分钟有效
 const TTL_PERMANENT_CODE = 9999999999 // 实际是永久有效
 const TTL_ACCESS_TOKEN = 6000 // 实际有效期为7200，提前20分钟刷新
 
-import 'dotenv/config';
 const { TOKEN, ENCODING_AES_KEY, SUITE_ID, SUITE_SECRET } = process.env;
-console.log({ TOKEN, ENCODING_AES_KEY, SUITE_ID, SUITE_SECRET })
+
+const eventBus = new EventEmitter();
+
+eventBus.on('gen_suite_access_token', gen_suite_access_token);
+eventBus.on('gen_permanent_code', gen_permanent_code);
+eventBus.on('gen_access_token', gen_access_token);
 
 function check_signature(timestamp, nonce, encrypted_str, msg_signature) {
     const sig = getSignature(TOKEN, timestamp, nonce, encrypted_str);
@@ -83,7 +90,8 @@ async function set_suite_ticket(suiteid, suite_ticket) {
     if (!suite_access_token) {
         // 尝试生成新的 suite_access_token
         logger.info(`gen: gen_suite_access_token(${{ suiteid, suite_ticket }})`);
-        await gen_suite_access_token(suiteid, suite_ticket);
+        // await gen_suite_access_token(suiteid, suite_ticket);
+        eventBus.emit('gen_suite_access_token', suiteid, suite_ticket);
     }
 }
 
@@ -101,7 +109,8 @@ async function set_auth_code(corpid, suiteid, auth_code) {
         // 尝试生成新的 permanent_code
         const json = JSON.stringify({ corpid, suiteid, auth_code, suite_access_token });
         logger.info(`gen: gen_permanent_code(${json})`,);
-        await gen_permanent_code(corpid, suiteid, auth_code, suite_access_token);
+        // await gen_permanent_code(corpid, suiteid, auth_code, suite_access_token);
+        eventBus.emit('gen_permanent_code', corpid, suiteid, auth_code, suite_access_token);
     }
 }
 
@@ -113,7 +122,7 @@ async function gen_suite_access_token(suiteid, suite_ticket) {
         suite_secret: SUITE_SECRET,
         suite_ticket: suite_ticket
     };
-    const { suite_access_token } = await httpPost('service/get_suite_token', data);
+    const { suite_access_token } = await httpPost('service/get_suite_token', data).catch(httpErrorHandler);
     logger.info(`cache: [suite_access_token:${suiteid}]=[${suite_access_token}], ttl=${TTL_SUITE_ACCESS_TOKEN}`);
     cache.set(`suite_access_token:${suiteid}`, suite_access_token, TTL_SUITE_ACCESS_TOKEN);
     return suite_access_token;
@@ -131,7 +140,7 @@ async function gen_permanent_code(corpid, suiteid, auth_code, suite_access_token
     const { permanent_code, auth_corp_info, auth_user_info } = await httpPost(
         `service/v2/get_permanent_code?suite_access_token=${suite_access_token}`,
         data
-    );
+    ).catch(httpErrorHandler);
     logger.info(`cache: [permanent_code:${corpid}:${suiteid}]=[${permanent_code}], ttl=${TTL_PERMANENT_CODE}`);
     cache.set(`permanent_code:${corpid}:${suiteid}`, permanent_code, TTL_PERMANENT_CODE);
 
@@ -142,7 +151,8 @@ async function gen_permanent_code(corpid, suiteid, auth_code, suite_access_token
     cache.set(`auth_user_info:${corpid}:${suiteid}`, auth_user_info, TTL_PERMANENT_CODE);
 
     // 自动生成代开发应用的 acccess token
-    await gen_access_token(corpid, permanent_code);
+    // await gen_access_token(corpid, permanent_code);
+    eventBus.emit('gen_access_token', corpid, permanent_code);
 }
 
 async function get_permanent_code(corpid, suiteid) {
@@ -152,7 +162,7 @@ async function get_permanent_code(corpid, suiteid) {
 async function gen_access_token(corpid, permanent_code) {
     // https://developer.work.weixin.qq.com/document/path/97164
     const api = `gettoken?corpid=${corpid}&corpsecret=${permanent_code}`
-    const { access_token } = await httpGet(api);
+    const { access_token } = await httpGet(api).catch(httpErrorHandler);
     logger.info(`cache: [access_token:${corpid}]=[${access_token}], ttl=${TTL_ACCESS_TOKEN}`);
     cache.set(`access_token:${corpid}`, access_token, TTL_ACCESS_TOKEN);
     return access_token;
@@ -160,6 +170,11 @@ async function gen_access_token(corpid, permanent_code) {
 
 async function get_access_token(corpid) {
     return cache.get(`access_token:${corpid}`);
+}
+
+function httpErrorHandler(err) {
+    logger.error(`Error: ${err}`);
+    return {};
 }
 
 export default {
