@@ -16,7 +16,7 @@ const cache = new LRUCache(options)
 
 export default {
     set: (k, v, ttl) => {
-        return cache.set(k, v, { ttl });
+        return cache.set(k, v, { ttl: ttl * 1000 });
     },
     get: (k) => {
         return cache.get(k);

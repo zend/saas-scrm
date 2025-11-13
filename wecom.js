@@ -89,7 +89,8 @@ async function set_suite_ticket(suiteid, suite_ticket) {
     const suite_access_token = await get_suite_access_token(suiteid);
     if (!suite_access_token) {
         // 尝试生成新的 suite_access_token
-        logger.info(`gen: gen_suite_access_token(${{ suiteid, suite_ticket }})`);
+        const json = JSON.stringify({ suiteid, suite_ticket });
+        logger.info(`emit: gen_suite_access_token(${json})`);
         // await gen_suite_access_token(suiteid, suite_ticket);
         eventBus.emit('gen_suite_access_token', suiteid, suite_ticket);
     }
@@ -108,7 +109,7 @@ async function set_auth_code(corpid, suiteid, auth_code) {
         const suite_access_token = await get_suite_access_token(suiteid);
         // 尝试生成新的 permanent_code
         const json = JSON.stringify({ corpid, suiteid, auth_code, suite_access_token });
-        logger.info(`gen: gen_permanent_code(${json})`,);
+        logger.info(`emit: gen_permanent_code(${json})`,);
         // await gen_permanent_code(corpid, suiteid, auth_code, suite_access_token);
         eventBus.emit('gen_permanent_code', corpid, suiteid, auth_code, suite_access_token);
     }
@@ -173,7 +174,7 @@ async function get_access_token(corpid) {
 }
 
 function httpErrorHandler(err) {
-    logger.error(`Error: ${err}`);
+    logger.error(`Error: ${JSON.stringify(err)}`);
     return {};
 }
 
