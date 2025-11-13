@@ -1,31 +1,57 @@
-import { LRUCache } from 'lru-cache';
+import fs from 'fs/promises'
 
-const options = {
-    max: 500,
+class Cache {
+    path = './data';
 
-    // how long to live in ms
-    ttl: 1000 * 60 * 99999,
+    async get(k) {
+        try {
+            const data = await fs.readFile(this.make_path(k));
+            const json = JSON.parse(data);
+            if (!json) return false;
+            const { v, ttl, mt } = json || {};
+            if (mt + ttl < +new Date()) return '';
+            return v;
+        } catch (e) {
+            return '';
+        }
+    }
 
-    // return stale items before removing from cache?
-    allowStale: false,
-    updateAgeOnGet: false,
-    updateAgeOnHas: false,
+    async set(k, v, ttl) {
+        const mt = +new Date();
+        const data = JSON.stringify({ v, ttl, mt });
+        return await fs.writeFile(this.make_path(k), data);
+    }
+
+    async all() {
+        const p = await fs.readdir(this.path);
+        const out = {};
+        for (let v in p) {
+            const k = p[v].replace(/\.json$/, '');
+            out[k] = await this.get(k);
+        }
+        return out;
+    }
+
+    make_path(k) {
+        k = k.replace(/[^a-z0-1_:-]/ig, '')
+        return `${this.path}/${k}.json`
+    }
 }
 
-const cache = new LRUCache(options)
+const cache = new Cache();
+async function main() {
+    console.log(await cache.all());
+}
+main();
 
 export default {
-    set: (k, v, ttl) => {
-        return cache.set(k, v, { ttl: ttl * 1000 });
+    set: async (k, v, ttl) => {
+        return await cache.set(k, v, { ttl: ttl * 1000 });
     },
-    get: (k) => {
-        return cache.get(k);
+    get: async (k) => {
+        return await cache.get(k);
     },
-    all: () => {
-        const items = [];
-        for (const item in cache.entries()) {
-            items.push(item);
-        }
-        return items;
+    all: async () => {
+        return await cache.all();
     }
 }

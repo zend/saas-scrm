@@ -17,7 +17,7 @@ const logger = createLogger({
     ),
     transports: [
         new transports.Console(),
-        new transports.File({ filename: 'app.log' }),
+        new transports.File({ filename: 'log/app.log' }),
     ]
 });
 
@@ -64,7 +64,7 @@ router.get('/scrm/api/user/list', async (ctx) => {
 });
 
 router.get('/scrm/test/peek_cache', async (ctx) => {
-    const all_cache = cache.all();
+    const all_cache = await cache.all();
     ctx.body = JSON.stringify(all_cache);
 });
 

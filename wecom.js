@@ -14,7 +14,7 @@ const logger = createLogger({
     ),
     transports: [
         new transports.Console(),
-        new transports.File({ filename: 'wecom.log' }),
+        new transports.File({ filename: 'log/wecom.log' }),
     ]
 });
 
@@ -55,23 +55,23 @@ async function decrypt_post_body(post_body, corpid, timestamp, nonce, msg_signat
     const message = await xml(xml_msg);
     switch (message.InfoType) {
         case 'suite_ticket':
-            logger.info(`suite_ticket, suiteid=${message.SuiteId}, ticket=${message.SuiteTicket}`);
+            logger.info(`suite_ticket event, suiteid=${message.SuiteId}, ticket=${message.SuiteTicket}`);
             await set_suite_ticket(message.SuiteId, message.SuiteTicket);
             break;
         case 'create_auth':
-            logger.info(`create_auth, suiteid=${message.SuiteId}, authcode=${message.AuthCode}`);
+            logger.info(`create_auth event, suiteid=${message.SuiteId}, authcode=${message.AuthCode}`);
             await set_auth_code(corpid, message.SuiteId, message.AuthCode);
             break;
         case 'reset_permanent_code':
-            logger.info(`reset_permanent_code, suiteid=${message.SuiteId}, auth code = ${message.AuthCode}`);
+            logger.info(`reset_permanent_code event, suiteid=${message.SuiteId}, auth code = ${message.AuthCode}`);
             await set_auth_code(corpid, message.SuiteId, message.AuthCode);
             break;
         case 'approve_special_auth':
         case 'cancel_special_auth':
-            logger.info(`approve_special_auth, AuthType=${message.AuthType}, AuthCorpId=${message.AuthCorpId}`);
+            logger.info(`approve_special_auth event, AuthType=${message.AuthType}, AuthCorpId=${message.AuthCorpId}`);
             break;
         case 'change_auth':
-            logger.info(`change_auth, AuthCorpId=${message.AuthCorpId}`);
+            logger.info(`change_auth event, AuthCorpId=${message.AuthCorpId}`);
             break;
 
         default:

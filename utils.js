@@ -9,7 +9,7 @@ const logger = createLogger({
     ),
     transports: [
         new transports.Console(),
-        new transports.File({ filename: 'traffic.log' }),
+        new transports.File({ filename: 'log/traffic.log' }),
     ]
 });
 
