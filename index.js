@@ -7,6 +7,8 @@ import { httpPost, httpGet } from './utils.js';
 import cache from "./cache.js";
 import wecom from './wecom.js';
 
+import 'dotenv/config';
+
 const app = new Koa();
 const router = new Router();
 
@@ -38,7 +40,8 @@ router.get('/scrm/callback', (ctx) => {
 router.post('/scrm/callback', async (ctx) => {
     logger.info(`router.post: ${ctx.url}, data=${ctx.request.body}`);
     const post_body = ctx.request.body || '';
-    const { corpid, timestamp, nonce, msg_signature } = ctx.query || {};
+    const { CORP_ID } = process.env;
+    const { corpid = CORP_ID, timestamp, nonce, msg_signature } = ctx.query || {};
     const message = await wecom.decrypt_post_body(post_body, corpid, timestamp, nonce, msg_signature);
     
     logger.info(`Received event message: ${message}`);

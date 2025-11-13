@@ -153,6 +153,8 @@ async function gen_permanent_code(corpid, suiteid, auth_code, suite_access_token
 
     // 自动生成代开发应用的 acccess token
     // await gen_access_token(corpid, permanent_code);
+    const json = JSON.stringify({ corpid, permanent_code });
+    logger.info(`emit: gen_access_token(${json})`,);
     eventBus.emit('gen_access_token', corpid, permanent_code);
 }
 
