@@ -108,6 +108,7 @@ async function set_auth_code(corpid, suiteid, auth_code) {
     if (!permanent_code) {
         const suite_access_token = await get_suite_access_token(suiteid);
         // 尝试生成新的 permanent_code
+        // TODO auth_code 怎么找到 corpid？？
         const json = JSON.stringify({ corpid, suiteid, auth_code, suite_access_token });
         logger.info(`emit: gen_permanent_code(${json})`,);
         // await gen_permanent_code(corpid, suiteid, auth_code, suite_access_token);
