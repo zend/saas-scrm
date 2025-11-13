@@ -119,7 +119,7 @@ async function gen_suite_access_token(suiteid, suite_ticket) {
     // suite_secret 需要配置在 .env 中，以免明文泄漏
     // https://developer.work.weixin.qq.com/document/path/97162
     const data = {
-        suite_id: SUITE_ID,
+        suite_id: suiteid || SUITE_ID,
         suite_secret: SUITE_SECRET,
         suite_ticket: suite_ticket
     };
